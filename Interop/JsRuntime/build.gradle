@@ -15,6 +15,7 @@
  */
 
 buildscript {
-    apply from: "$rootDir/gradle/kotlinGradlePlugin.gradle"
+    //todo: joint build, solve this
+    apply from: "$rootDir/kotlin-native/gradle/kotlinGradlePlugin.gradle"
 }
 

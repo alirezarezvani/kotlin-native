@@ -29,7 +29,6 @@ buildscript {
 }
 import org.jetbrains.kotlin.konan.target.ClangArgs
 
-
 model {
     components {
         callbacks(NativeLibrarySpec) {
@@ -38,9 +37,11 @@ model {
                 include '**/*.c'
             }
             binaries.all {
-                def host = rootProject.ext.hostName
+                def rtProject = isKotlinCompositeBuild ? rootProject.project(":kotlin-native") : rootProject
 
-                def hostLibffiDir = rootProject.ext.get("${host}LibffiDir")
+                def host = rtProject.ext.hostName
+
+                def hostLibffiDir = rtProject.ext.get("${host}LibffiDir")
 
                 cCompiler.args hostPlatform.clang.hostCompilerArgsForJni
                 cCompiler.args "-I$hostLibffiDir/include"

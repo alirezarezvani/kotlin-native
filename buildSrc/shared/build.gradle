@@ -24,6 +24,10 @@ buildscript {
     apply from: '../../gradle/kotlinGradlePlugin.gradle'
 }
 
+repositories {
+    jcenter()
+}
+
 apply plugin: 'kotlin'
 
 // We reuse the source code from the Project in buildSrc.

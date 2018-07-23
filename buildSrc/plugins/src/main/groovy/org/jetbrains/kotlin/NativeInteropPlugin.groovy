@@ -23,17 +23,16 @@ import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileCollection
 import org.gradle.api.internal.AbstractNamedDomainObjectContainer
-import org.gradle.api.internal.file.AbstractFileCollection
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet
-import org.gradle.api.tasks.TaskDependency
 import org.gradle.internal.reflect.Instantiator
-import org.jetbrains.kotlin.konan.target.*
-import org.jetbrains.kotlin.konan.util.*
 
 class NamedNativeInteropConfig implements Named {
 
     private final Project project
+    private final boolean isKotlinCompositeBuild = project.rootProject.findProject(":kotlin-native") != null
+    private final String kotlinNativePrefix = isKotlinCompositeBuild ? ":kotlin-native" : ""
+
     final String name
 
 
@@ -163,7 +162,10 @@ class NamedNativeInteropConfig implements Named {
         this.project = project
         this.flavor = flavor
 
-        def platformManager = project.rootProject.ext.platformManager
+        def platformManager =
+                (isKotlinCompositeBuild ?
+                        project.rootProject.project('kotlin-native') :
+                        project.rootProject.ext.platformManager).ext.platformManager
         def targetManager = platformManager.targetManager(target)
         this.target = targetManager.targetName
 
@@ -187,7 +189,7 @@ class NamedNativeInteropConfig implements Named {
             interopStubs.kotlin.srcDirs generatedSrcDir
 
             project.dependencies {
-                add interopStubs.getCompileConfigurationName(), project(path: ':Interop:Runtime')
+                add interopStubs.getCompileConfigurationName(), project(path: kotlinNativePrefix + ':Interop:Runtime')
             }
 
             this.configuration.extendsFrom project.configurations[interopStubs.runtimeConfigurationName]
@@ -200,10 +202,12 @@ class NamedNativeInteropConfig implements Named {
             jvmArgs '-ea'
 
             systemProperties "java.library.path" : project.files(
-                    new File(project.findProject(":Interop:Indexer").buildDir, "nativelibs"),
-                    new File(project.findProject(":Interop:Runtime").buildDir, "nativelibs")
+                    new File(project.findProject(kotlinNativePrefix + ":Interop:Indexer").buildDir, "nativelibs"),
+                    new File(project.findProject(kotlinNativePrefix + ":Interop:Runtime").buildDir, "nativelibs")
+
             ).asPath
-            systemProperties "konan.home": project.rootProject.projectDir
+            systemProperties "konan.home": isKotlinCompositeBuild ?
+                    project.rootProject.project(":kotlin-native").projectDir : project.rootProject.projectDir
             environment "LIBCLANG_DISABLE_CRASH_RECOVERY": "1"
 
             outputs.dir generatedSrcDir
@@ -295,7 +299,11 @@ class NativeInteropPlugin implements Plugin<Project> {
     void apply(Project prj) {
         prj.extensions.add("kotlinNativeInterop", new NativeInteropExtension(prj))
 
-        def runtimeNativeLibsDir = new File(prj.findProject(':Interop:Runtime').buildDir, 'nativelibs')
+        def isKotlinCompositeBuild = prj.rootProject.findProject(":kotlin-native") != null
+        def kotlinNativePrefix = isKotlinCompositeBuild ? ":kotlin-native" : ""
+
+        def runtimeInteropProject = prj.findProject(kotlinNativePrefix + ':Interop:Runtime')
+        def runtimeNativeLibsDir = new File(runtimeInteropProject.buildDir, 'nativelibs')
 
         def nativeLibsDir = new File(prj.buildDir, "nativelibs")
 
@@ -304,7 +312,7 @@ class NativeInteropPlugin implements Plugin<Project> {
         }
 
         prj.dependencies {
-            interopStubGenerator project(path: ":Interop:StubGenerator")
+            interopStubGenerator project(path: kotlinNativePrefix + ":Interop:StubGenerator")
         }
 
         // FIXME: choose tasks more wisely

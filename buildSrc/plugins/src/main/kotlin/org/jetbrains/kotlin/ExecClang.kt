@@ -28,7 +28,11 @@ import org.jetbrains.kotlin.konan.file.*
 
 internal class ExecClang(private val project: Project) {
 
-    private val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
+    private val platformManager =
+        if (project.rootProject.hasProperty("platformManager"))
+            project.rootProject.findProperty("platformManager") as PlatformManager
+        else
+            project.rootProject.project("kotlin-native").findProperty("platformManager") as PlatformManager
 
     private fun konanArgs(target: KonanTarget): List<String> {
         return platformManager.platform(target).clang.clangArgsForKonanSources.asList()
@@ -87,7 +91,11 @@ internal class ExecClang(private val project: Project) {
                     }
 
                     if (listOf("clang", "clang++").contains(executable)) {
-                        val llvmDir = project.findProperty("llvmDir")
+                        val llvmDir =
+                            if (project.rootProject.hasProperty("llvmDir"))
+                                project.rootProject.findProperty("llvmDir")
+                            else
+                                project.rootProject.project("kotlin-native").findProperty("llvmDir")
                         executable = "${llvmDir}/bin/$executable" }
                     else {
                         throw GradleException("unsupported clang executable: $executable")

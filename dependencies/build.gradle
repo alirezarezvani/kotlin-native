@@ -17,20 +17,15 @@
 
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.FromString
-import org.jetbrains.kotlin.konan.target.*
-import org.jetbrains.kotlin.konan.util.DependencyProcessor
-import static org.jetbrains.kotlin.konan.target.KonanTarget.*
-import org.jetbrains.kotlin.konan.util.Named
 import org.jetbrains.kotlin.konan.properties.KonanPropertiesLoader
-import org.jetbrains.kotlin.konan.target.ConfigurablesImplKt
 import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.jetbrains.kotlin.konan.target.TargetManager
 import org.jetbrains.kotlin.konan.util.DependencyProcessor
-
-import static org.jetbrains.kotlin.konan.util.VisibleNamedKt.getVisibleName
 
 buildscript {
-    apply from: "$rootDir/gradle/kotlinGradlePlugin.gradle"
+    if (isKotlinCompositeBuild)
+        apply from: "$rootDir/kotlin-native/gradle/kotlinGradlePlugin.gradle"
+    else
+        apply from: "$rootDir/gradle/kotlinGradlePlugin.gradle"
 
     repositories {
         maven {
@@ -137,7 +132,8 @@ enum DependencyKind {
     String toString() { return name }
 }
 
-def platformManager = rootProject.ext.platformManager
+def kotlinNativeProject = rootProject.project(":kotlin-native") == null ? rootProject : rootProject.project(":kotlin-native")
+def platformManager = kotlinNativeProject.ext.platformManager
 
 platformManager.enabled.each { target ->
     def loader = platformManager.loader(target)
@@ -152,7 +148,7 @@ platformManager.enabled.each { target ->
 
     // Also resolves all dependencies:
     final DependencyProcessor dependencyProcessor = new DependencyProcessor(
-            project.rootProject.ext.dependenciesDir,
+            kotlinNativeProject.ext.dependenciesDir,
             loader.properties,
             loader.dependencies,
             HelperNativeDep.baseUrl,
@@ -163,7 +159,7 @@ platformManager.enabled.each { target ->
         def dir = kind.getDirectory(loader)
         if (dir != null) {
             String path = dependencyProcessor.resolveRelative(dir).canonicalPath
-            rootProject.ext.set(kind.getPropertyName(target), path)
+            kotlinNativeProject.ext.set(kind.getPropertyName(target), path)
         }
     }
 }
